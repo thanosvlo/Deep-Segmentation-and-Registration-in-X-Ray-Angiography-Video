@@ -39,7 +39,7 @@ def model_fn(features,labels,mode, params):
         filters=(16, 32, 64, 128),
         strides=((1, 1, 1), (1, 2, 2), (1, 2, 2), (1, 2, 2)),
         mode=mode,
-        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-4))
+        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-6))
 
     if mode==tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(
@@ -47,9 +47,9 @@ def model_fn(features,labels,mode, params):
                 predictions=net_output_ops,
                 export_outputs={'out':tf.estimator.export.PredictOutput(net_output_ops)})
 
-    loss=tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels['y'],
+    ce=tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels['y'],
                                                 logits=net_output_ops['logits'])
-
+    loss=tf.reduce_mean(ce)
     global_step=tf.train.get_global_step()
     
     optimiser=tf.train.AdamOptimizer(learning_rate=params["learning_rate"],
@@ -68,7 +68,7 @@ def model_fn(features,labels,mode, params):
     my_image_summaries['predictions'] = tf.cast(net_output_ops['y_'], tf.float32)[0, 0, :, :]
 
 
-    [print (image.shape) for name,image in my_image_summaries.items()]
+    
     expected_output_size = [1, 512, 512, 1]  # [B, W, H, C]
     [tf.summary.image(name, tf.reshape(image, expected_output_size))
      for name, image in my_image_summaries.items()]
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
     nn = tf.estimator.Estimator(model_fn=model_fn, 
                             model_dir=args.model_path, 
-                            params={"learning_rate": 1e-5},
+                            params={"learning_rate": 1e-6},
                             config=tf.estimator.RunConfig())
     # Hooks for validation summaries
     val_summary_hook = tf.contrib.training.SummaryAtEndHook(
