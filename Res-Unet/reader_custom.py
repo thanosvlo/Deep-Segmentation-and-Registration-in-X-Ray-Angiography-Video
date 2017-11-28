@@ -36,13 +36,13 @@ def read_fn (file_references,mode,params=None):
         no_ext=no_ext[0]
         lbl = sitk.GetArrayFromImage(sitk.ReadImage(
             os.path.join(str(no_ext)+'_mask.tif'))).astype(np.int32)
-        
+        lbl=lbl[:,:,0]
         lbl=lbl[np.newaxis,...]
 
-
+        
         # Augment if used in training mode
-        # if mode == tf.estimator.ModeKeys.TRAIN:
-        #     img, lbl = _augment(img, lbl)
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            img, lbl = _augment(img, lbl)
         
         if params['extract_examples']:
             n_examples = params['n_examples']

@@ -24,7 +24,7 @@ NUM_CHANNELS = 3
 
 NUM_FEATURES_IN_SUMMARIES = min(4, NUM_CHANNELS)
 
-BATCH_SIZE = 1
+BATCH_SIZE = 8
 SHUFFLE_CACHE_SIZE = 64
 
 MAX_STEPS = 50000
@@ -69,7 +69,7 @@ def model_fn(features,labels,mode, params):
 
 
     
-    expected_output_size = [1, 512, 512, 1]  # [B, W, H, C]
+    expected_output_size = [1, 256, 256, 1]  # [B, W, H, C]
     [tf.summary.image(name, tf.reshape(image, expected_output_size))
      for name, image in my_image_summaries.items()]
     return tf.estimator.EstimatorSpec(mode=mode,
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     train_filenames = all_filenames[1:80]
     val_filenames = all_filenames[80:86]
     reader_params = {'n_examples': 18,
-                     'example_size': [1, 512, 512],
+                     'example_size': [1, 256, 256],
                      'extract_examples': False}
     reader_example_shapes = {'features': {'x': reader_params['example_size'] + [NUM_CHANNELS, ]},
                              'labels': {'y': reader_params['example_size']}}
