@@ -24,7 +24,7 @@ NUM_CHANNELS = 3
 
 NUM_FEATURES_IN_SUMMARIES = min(4, NUM_CHANNELS)
 
-BATCH_SIZE = 16
+BATCH_SIZE = 1
 SHUFFLE_CACHE_SIZE = 64
 
 MAX_STEPS = 50000
@@ -47,17 +47,31 @@ def model_fn(features,labels,mode, params):
                 predictions=net_output_ops,
                 export_outputs={'out':tf.estimator.export.PredictOutput(net_output_ops)})
 
-    loss=tf.losses.sparce_softmax_cross_entropy(labels['y'],
-                                                net_output_ops['logits'])
+    loss=tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels['y'],
+                                                logits=net_output_ops['logits'])
 
     global_step=tf.train.get_global_step()
+    
     optimiser=tf.train.AdamOptimizer(learning_rate=params["learning_rate"],
                                     epsilon=1e-5)
+
     
-    update_ops=tf.get_colletion(tf.GraphKeys.UPDATE_OPS)
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
         train_op=optimiser.minimize(loss,global_step=global_step)
 
+
+    # 4.1 (optional) create custom image summaries for tensorboard
+    my_image_summaries = {}
+    my_image_summaries['feat'] = features['x'][0, 0, :, :, 0]
+    my_image_summaries['labels'] = tf.cast(labels['y'], tf.float32)[0, 0, :, :]
+    my_image_summaries['predictions'] = tf.cast(net_output_ops['y_'], tf.float32)[0, 0, :, :]
+
+
+    [print (image.shape) for name,image in my_image_summaries.items()]
+    expected_output_size = [1, 512, 512, 1]  # [B, W, H, C]
+    [tf.summary.image(name, tf.reshape(image, expected_output_size))
+     for name, image in my_image_summaries.items()]
     return tf.estimator.EstimatorSpec(mode=mode,
                                         predictions=net_output_ops,
                                         loss=loss,
@@ -71,7 +85,7 @@ if __name__ == '__main__':
         description='Example: MRBrainS13 example segmentation training script')
     parser.add_argument('--run_validation', default=True)
     parser.add_argument('--restart', default=False, action='store_true')
-    parser.add_argument('--verbose', default=False, action='store_true')
+    parser.add_argument('--verbose', default=True, action='store_true')
     parser.add_argument('--cuda_devices', '-c', default='0')
 
     parser.add_argument('--model_path', '-p', default='./outputs')
@@ -107,9 +121,13 @@ if __name__ == '__main__':
 
     train_filenames = all_filenames[1:80]
     val_filenames = all_filenames[80:86]
+    reader_params = {'n_examples': 18,
+                     'example_size': [1, 512, 512],
+                     'extract_examples': False}
+    reader_example_shapes = {'features': {'x': reader_params['example_size'] + [NUM_CHANNELS, ]},
+                             'labels': {'y': reader_params['example_size']}}
 
-    reader_example_dtypes = {'features': {'x': tf.float32},
-                         'labels': {'y': tf.int32}}
+    
     reader = Reader(read_fn,
                     {'features': {'x': tf.float32},
                      'labels': {'y': tf.int32}})
@@ -118,14 +136,18 @@ if __name__ == '__main__':
     train_input_fn, train_qinit_hook = reader.get_inputs(
         file_references=train_filenames,
         mode=tf.estimator.ModeKeys.TRAIN,
+        example_shapes=reader_example_shapes,
         batch_size=BATCH_SIZE,
-        shuffle_cache_size=SHUFFLE_CACHE_SIZE)
+        shuffle_cache_size=SHUFFLE_CACHE_SIZE,
+        params=reader_params)
 
     val_input_fn, val_qinit_hook = reader.get_inputs(
         file_references=val_filenames,
         mode=tf.estimator.ModeKeys.EVAL,
+        example_shapes=reader_example_shapes,
         batch_size=BATCH_SIZE,
-        shuffle_cache_size=SHUFFLE_CACHE_SIZE)
+        shuffle_cache_size=SHUFFLE_CACHE_SIZE,
+        params=reader_params)
 
     nn = tf.estimator.Estimator(model_fn=model_fn, 
                             model_dir=args.model_path, 

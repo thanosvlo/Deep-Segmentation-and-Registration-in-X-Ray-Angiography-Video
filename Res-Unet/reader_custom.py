@@ -19,8 +19,11 @@ def read_fn (file_references,mode,params=None):
         # Read the image - tif - with cv2 
         sitk_img=sitk.ReadImage(str(img_fn))
         img=sitk.GetArrayFromImage(sitk_img)
+
         img=whitening(img)
-        img=img[...,np.newaxis]
+
+        img=img[np.newaxis,...]
+      
 
         if mode==tf.estimator.ModeKeys.PREDICT:
             yield{'features':{'x':img},
@@ -29,13 +32,36 @@ def read_fn (file_references,mode,params=None):
                         'sitk':sitk_img
                     }}
 
+        no_ext=img_fn.split('.')
+        no_ext=no_ext[0]
         lbl = sitk.GetArrayFromImage(sitk.ReadImage(
-            os.path.join(str(img_fn)+'_mask.tif')).astype(np.int32)
+            os.path.join(str(no_ext)+'_mask.tif'))).astype(np.int32)
+        
+        lbl=lbl[np.newaxis,...]
 
-        if mode==tf.estimator.ModeKeys.TRAIN:
-            img, lbl = _augment(img, lbl)
 
-        yield{ 'features':{'x':img},
+        # Augment if used in training mode
+        # if mode == tf.estimator.ModeKeys.TRAIN:
+        #     img, lbl = _augment(img, lbl)
+        
+        if params['extract_examples']:
+            n_examples = params['n_examples']
+            example_size = params['example_size']
+
+            images, lbl = extract_class_balanced_example_array(
+                image=images,
+                label=lbl,
+                example_size=example_size,
+                n_examples=n_examples,
+                classes=2)
+
+            for e in range(n_examples):
+                yield {'features': {'x': images[e].astype(np.float32)},
+                       'labels': {'y': lbl[e].astype(np.int32)},
+                       'subject_id': subject_id}
+        else:
+            
+            yield{ 'features':{'x':img},
                 'labels':{'y':lbl},
                 'metadata':{
                     'subject_id':subject_id,
@@ -43,4 +69,4 @@ def read_fn (file_references,mode,params=None):
                 }
 
         }
-
+    return
