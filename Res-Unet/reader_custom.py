@@ -19,7 +19,6 @@ def read_fn (file_references,mode,params=None):
         # Read the image - tif - with cv2 
         sitk_img=sitk.ReadImage(str(img_fn))
         img=sitk.GetArrayFromImage(sitk_img)
-
         img=whitening(img)
 
         img=img[np.newaxis,...]
@@ -43,7 +42,9 @@ def read_fn (file_references,mode,params=None):
         # Augment if used in training mode
         if mode == tf.estimator.ModeKeys.TRAIN:
             img, lbl = _augment(img, lbl)
-        
+        img=img/255
+        lbl=lbl/255
+
         if params['extract_examples']:
             n_examples = params['n_examples']
             example_size = params['example_size']

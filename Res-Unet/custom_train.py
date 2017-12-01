@@ -10,13 +10,14 @@ import os
 import pandas as pd
 import tensorflow as tf
 import numpy as np
+from dltk.core.metrics import dice
 
 from dltk.io.abstract_reader import Reader
 from dltk.networks.segmentation.unet import residual_unet_3d
 
 from reader_custom import read_fn
 
-EVAL_EVERY_N_STEPS = 100
+EVAL_EVERY_N_STEPS = 1000
 EVAL_STEPS = 1
 
 NUM_CLASSES = 2
@@ -26,7 +27,6 @@ NUM_FEATURES_IN_SUMMARIES = min(4, NUM_CHANNELS)
 
 BATCH_SIZE = 8
 SHUFFLE_CACHE_SIZE = 64
-
 MAX_STEPS = 50000
 
 #
@@ -52,8 +52,9 @@ def model_fn(features,labels,mode, params):
     loss=tf.reduce_mean(ce)
     global_step=tf.train.get_global_step()
     
-    optimiser=tf.train.AdamOptimizer(learning_rate=params["learning_rate"],
-                                    epsilon=1e-5)
+    optimiser = tf.train.MomentumOptimizer(
+        learning_rate=params["learning_rate"],
+        momentum=0.9)
 
     
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -72,6 +73,13 @@ def model_fn(features,labels,mode, params):
     expected_output_size = [1, 256, 256, 1]  # [B, W, H, C]
     [tf.summary.image(name, tf.reshape(image, expected_output_size))
      for name, image in my_image_summaries.items()]
+    # 4.2 (optional) create custom metric summaries for tensorboard
+    dice_tensor = tf.py_func(dice, [net_output_ops['y_'],
+                                    labels['y'],
+                                    tf.constant(NUM_CLASSES)], tf.float32)
+    [tf.summary.scalar('dsc_l{}'.format(i), dice_tensor[i])
+     for i in range(NUM_CLASSES)]
+    
     return tf.estimator.EstimatorSpec(mode=mode,
                                         predictions=net_output_ops,
                                         loss=loss,
@@ -89,7 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('--cuda_devices', '-c', default='0')
 
     parser.add_argument('--model_path', '-p', default='./outputs')
-    parser.add_argument('--train_csv', default='/home/av2514/DLTK-master/examples/applications/MRBrainS13_tissue_segmentation/Training/train.csv')
+    parser.add_argument('--train_csv', default='/home/av2514/DLTK-master/examples/applications/MRBrainS13_tissue_segmentation/Training/train_full.csv')
     args = parser.parse_args()
 
     # Set verbosity
@@ -99,6 +107,10 @@ if __name__ == '__main__':
     else:
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         tf.logging.set_verbosity(tf.logging.ERROR)
+
+    if args.restart:
+        print('Restarting training from scratch.')
+        os.system('rm -rf {}'.format(args.model_path))
     if not os.path.isdir(args.model_path):
         os.system('mkdir -p {}'.format(args.model_path))
     else:
@@ -119,8 +131,8 @@ if __name__ == '__main__':
     keep_default_na=False,
     na_values=[]).as_matrix()
 
-    train_filenames = all_filenames[1:80]
-    val_filenames = all_filenames[80:86]
+    train_filenames = all_filenames[1:18000]
+    val_filenames = all_filenames[18001:18327]
     reader_params = {'n_examples': 18,
                      'example_size': [1, 256, 256],
                      'extract_examples': False}
@@ -153,6 +165,7 @@ if __name__ == '__main__':
                             model_dir=args.model_path, 
                             params={"learning_rate": 1e-6},
                             config=tf.estimator.RunConfig())
+
     # Hooks for validation summaries
     val_summary_hook = tf.contrib.training.SummaryAtEndHook(
         os.path.join(args.model_path, 'eval'))
