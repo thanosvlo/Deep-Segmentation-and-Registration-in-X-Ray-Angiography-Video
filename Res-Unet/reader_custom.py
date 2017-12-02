@@ -3,11 +3,14 @@ import os
 from dltk.io.augmentation import *
 from dltk.io.preprocessing import *
 import tensorflow as tf
+import sklearn
+from sklearn.preprocessing import normalize
+
 
 def read_fn (file_references,mode,params=None):
     def _augment(img, lbl):
         """An image augmentation function"""
-        img = add_gaussian_noise(img, sigma=0.1)
+        # img = add_gaussian_noise(img, sigma=0.1)
         [img, lbl] = flip([img, lbl], axis=1)
 
         return img, lbl
@@ -19,9 +22,10 @@ def read_fn (file_references,mode,params=None):
         # Read the image - tif - with cv2 
         sitk_img=sitk.ReadImage(str(img_fn))
         img=sitk.GetArrayFromImage(sitk_img)
-        img=whitening(img)
+        img=img[:,:,0]
+        
 
-        img=img[np.newaxis,...]
+        img=img[np.newaxis,...,np.newaxis]
       
 
         if mode==tf.estimator.ModeKeys.PREDICT:
@@ -34,16 +38,28 @@ def read_fn (file_references,mode,params=None):
         no_ext=img_fn.split('.')
         no_ext=no_ext[0]
         lbl = sitk.GetArrayFromImage(sitk.ReadImage(
-            os.path.join(str(no_ext)+'_mask.tif'))).astype(np.int32)
+            os.path.join(str(no_ext)+'_mask.png'))).astype(np.int32)
         lbl=lbl[:,:,0]
-        lbl=lbl[np.newaxis,...]
+        
 
+        lbl=lbl[np.newaxis,...]
+        
         
         # Augment if used in training mode
         if mode == tf.estimator.ModeKeys.TRAIN:
             img, lbl = _augment(img, lbl)
-        img=img/255
-        lbl=lbl/255
+        
+        ### Normalization 
+        # print(img.max())
+        # print(lbl.max())
+        img=whitening(img)
+        lbl=whitening(lbl)
+        img=img/img.max()#255
+        lbl=lbl/lbl.max()#255
+        # 
+        # print(img.max())
+        # print(lbl.max())
+        # k=aaaaa
 
         if params['extract_examples']:
             n_examples = params['n_examples']
