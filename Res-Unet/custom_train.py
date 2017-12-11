@@ -97,7 +97,7 @@ if __name__ == '__main__':
     parser.add_argument('--cuda_devices', '-c', default='0')
 
     parser.add_argument('--model_path', '-p', default='./outputs')
-    parser.add_argument('--train_csv', default='/home/av2514/DLTK-master/examples/applications/MRBrainS13_tissue_segmentation/train_full.csv')
+    parser.add_argument('--train_csv', default='/home/av2514/DLTK-master/examples/applications/MRBrainS13_tissue_segmentation/transfer.csv')
     args = parser.parse_args()
 
     # Set verbosity
@@ -131,8 +131,8 @@ if __name__ == '__main__':
     keep_default_na=False,
     na_values=[]).as_matrix()
 
-    train_filenames = all_filenames[1:17000]
-    val_filenames = all_filenames[17001:18327]
+    train_filenames = all_filenames[1:70]
+    val_filenames = all_filenames[70:82]
     reader_params = {'n_examples': 18,
                      'example_size': [1, 256, 256],
                      'extract_examples': False}
@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
     nn = tf.estimator.Estimator(model_fn=model_fn, 
                             model_dir=args.model_path, 
-                            params={"learning_rate": 1e-3},
+                            params={"learning_rate": 1e-5},
                             config=tf.estimator.RunConfig())
 
     # Hooks for validation summaries
