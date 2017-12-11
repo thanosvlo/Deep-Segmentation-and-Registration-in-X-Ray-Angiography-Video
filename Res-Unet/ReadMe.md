@@ -11,9 +11,12 @@ the masks should have the same path and name as the images but add the suffix '_
 
 This implementation fed with .png images and in the deploy phase it exports .nii.gz - I suggest FIJI or ImageJ to open them
 
+PERFORMANCE :
+Dice distance of about 0.9
+inference speed using GTX TITAN ~ 22fps
 
 TODO - Better Documentation
 
 This is an initial version of the documentation since project is yet unfinished.
 
-Any issues let me know 
+Any issues let me know
