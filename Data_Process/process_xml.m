@@ -1,7 +1,7 @@
 clear all;
-HOMEIMAGES = '/Users/thanosvlo/Desktop/FYP/collection-3/Images/';
-HOMEANNOTATIONS = '/Users/thanosvlo/Desktop/FYP/collection-3/Annotations';
-output_folder='/Users/thanosvlo/Desktop/FYP/Images/';
+HOMEIMAGES = 'PATH TO YOUR IMAGES';
+HOMEANNOTATIONS = 'PATH TO YOUR ANNOTATIONS';
+output_folder='PATH TO YOUR OUTPUT FOLDER';
 ext='.tif';
 
 
@@ -11,7 +11,7 @@ D = LMdatabase(HOMEANNOTATIONS);
 
 for i=1:4
     
-image_path=strcat(HOMEIMAGES,'users/tvlo4648/fyp/',Dwire(i).annotation.filename);
+image_path=strcat(HOMEIMAGES,'users/_/fyp/',Dwire(i).annotation.filename);
 [path,filename,~] = fileparts(image_path);
 new_image_path=strcat(output_folder,filename,ext);
 mask_path=strcat(output_folder,filename,'_mask',ext);
